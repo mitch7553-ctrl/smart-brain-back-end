@@ -1,7 +1,13 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
+const bcrypt = require('bcrypt-nodejs');
+const cors = require('cors');
+
+
+
 app.use(bodyParser.json());
+app.use(cors())
 
 
 
@@ -20,11 +26,16 @@ users: [
 	id:'124',
 	name: 'sally',
 	email: 'sally@gmail.com',
-	password:'banna',
+	password:'banana',
 	entries:0,
 	joined: new Date()
   }
- ]
+ ],
+ login: [{
+ 	id:'987',
+ 	hash: '$2a$10$0k/NrWlq1IDGVtXl5qDc7eIt8k62SWQoZBwEPgpJzI0LAJKNzlB1W',
+ 	enail:'john@gmail.com'
+ }]
 }
 
 app.get('/', (req, res ) => {
@@ -34,21 +45,30 @@ app.get('/', (req, res ) => {
 
 
 app.post('/signin', (req, res) => {
-	if ( req.body === database.users[0].email && 
-		req.body.password === database.users[0].password ) {
-		req.json('success');
+	const {email, password} = req.body;
+// 	 bcrypt.compare("cookies", '$2a$10$0k/NrWlq1IDGVtXl5qDc7eIt8k62SWQoZBwEPgpJzI0LAJKNzlB1W', function(err, res) {
+  //      console.log('first guess', res);
+  // });
+
+  //  bcrypt.compare("veggies", '$2a$10$0k/NrWlq1IDGVtXl5qDc7eIt8k62SWQoZBwEPgpJzI0LAJKNzlB1W', function(err, res) {
+  //      console.log('second guess', res);
+  //    });
+
+	if ( email === database.users[0].email && 
+		 password === database.users[0].password ) {
+		res.json(database.users[0]);
 	} else  {
 		res.status(400).json('error logging in')
 	}
-	res.json('signin');
 })
 
 app.post('/register', (req, res) => {
 	const { email, name, password} = req.body;
+
 	database.users.push({
-	id:'125',
+	id:'',
 	name: name,
-	email: name,
+	email: email,
 	password: password,
 	entries: 0,
 	joined: new Date()
@@ -70,7 +90,7 @@ app.get('/profile/:id', (req, res) =>  {
 	})
 })
 
-app.post('/image', (req, res) => { 
+app.put('/image', (req, res) => { 
 	const {id}  = req.body;
 	let found = false;
 	database.users.forEach(user => {
@@ -84,19 +104,8 @@ app.post('/image', (req, res) => {
 		}
 	})
 })
+
+
 app.listen(3000, () => {
 	console.log('app  is running on 3000 port');
 })
-
-
-
-
-
-
-/* --> res = this is working 
-/signin --> POST success/fail 
-
-/register --> POST  = user 
-/profile/:userId  --> GET  = user 
-/ image --> PUT -->  user 
-*/

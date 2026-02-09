@@ -28,7 +28,7 @@ const database = {
 } 
 
 app.listen( 3000, () => {
-	console.log('app is running on port 300');
+	console.log('app is running on port 3000');
 })
 
 app.get('/', (req, res) => {
@@ -36,7 +36,8 @@ app.get('/', (req, res) => {
 })
 
 app.post('/signin', (req,res) => {
- if (req.body.email === database.users[0].email && req.body.users[0].password) {
+ if (req.body.email === database.users[0].email && 
+ 	req.body === req.body.users[0].password) {
  	res.json('success');
  } else {
  	res.status(400).json('error logging in');
