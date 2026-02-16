@@ -1,0 +1,66 @@
+const Clarifai = require('clarifai');
+
+const returnClarifaiRequestOptions = (imageUrl) => {
+  const PAT = '1698e5305d1f4389885e95b4334811a6';
+  const USER_ID = 'clarifai';       
+  const APP_ID = 'main';
+
+  const IMAGE_URL = imageUrl;
+
+  const raw = JSON.stringify({
+      "user_app_id": {
+          "user_id": USER_ID,
+          "app_id": APP_ID
+      },
+      "inputs": [
+          {
+              "data": {
+                  "image": {
+                      "url": IMAGE_URL
+                  }
+              }
+          }
+      ]
+  });
+
+  return {
+      method: 'POST',
+      headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Key ' + PAT
+      },
+      body: raw
+  };
+}
+
+const handleApiCall = (req, res) => {
+  //OLD WAY:
+  // app.models.predict('face-detection', req.body.input)
+  //NEW WAY:
+  fetch("https://api.clarifai.com/v2/models/" + 'face-detection' + "/outputs", returnClarifaiRequestOptions(req.body.input))
+    .then(response => response.json())
+    .then(data => {
+      res.json(data);
+    })
+    .catch(err => res.status(400).json('unable to work with API'))
+}
+
+const handleImage = (req, res, db) => {
+  const { id } = req.body;
+  db('users').where('id', '=', id)
+  .increment('entries', 1)
+  .returning('entries')
+  .then(entries => {
+    // If you are using knex.js version 1.0.0 or higher this now returns an array of objects. Therefore, the code goes from:
+    // entries[0] --> this used to return the entries
+    // TO
+    // entries[0].entries --> this now returns the entries
+    res.json(entries[0].entries);
+  })
+  .catch(err => res.status(400).json('unable to get entries'))
+}
+
+module.exports = {
+  handleImage,
+  handleApiCall
+}
