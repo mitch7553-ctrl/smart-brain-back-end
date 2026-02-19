@@ -1,7 +1,7 @@
 const Clarifai = require('clarifai');
 
 const returnClarifaiRequestOptions = (imageUrl) => {
-  const PAT = 'ADD_PAT_HERE;
+  const PAT = 'ADD_PAT_HERE';
   const USER_ID = 'clarifai';       
   const APP_ID = 'main';
 
