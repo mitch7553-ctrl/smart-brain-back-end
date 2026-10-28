@@ -6,6 +6,10 @@ const handleSignin = (db, bcrypt) => async (req, res) => {
     return res.status(400).json('incorrect form submission');
   }
 
+  if (!process.env.AUTH_TOKEN_SECRET || process.env.AUTH_TOKEN_SECRET.length < 32) {
+    return res.status(503).json('Authentication service is not configured');
+  }
+
   try {
     const credentials = await db.select('email', 'hash').from('login').where({ email }).first();
     if (!credentials || !bcrypt.compareSync(password, credentials.hash)) {
