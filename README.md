@@ -56,3 +56,9 @@ The face-detection endpoint requires `CLARIFAI_PAT`. Without it, the endpoint re
 3. Set `CLARIFAI_PAT` in your host's secret manager and test detection with a safe public image URL.
 4. Verify login, registration, profile loading, and entry increments on a staging deployment.
 5. Review permitted frontend origins; CORS currently allows any origin and is **not** authorization.
+
+## Authentication update (draft PR)
+
+**Breaking integration change:** Configure a strong, stable `AUTH_TOKEN_SECRET` (32+ characters) before deploying this branch. Sign-in and registration return a short-lived bearer token. Send `Authorization: Bearer <token>` for `/profile/:id`, `/image`, and `/imageurl`. User-specific endpoints require the token identity to match the requested user ID. Tokens expire after eight hours; signing out on the frontend discards the token in memory. Previously issued tokens cannot be revoked individually; rotating the secret invalidates all tokens.
+
+Do not merge or deploy the backend without the matching frontend changes and end-to-end staging verification. Further measures for production include login rate limiting, password hashing migration, and more restrictive CORS.
