@@ -1,66 +1,81 @@
-const Clarifai = require('clarifai');
+const CLARIFAI_URL = 'https://api.clarifai.com/v2/models/face-detection/outputs';
 
-const returnClarifaiRequestOptions = (imageUrl) => {
-  const PAT = 'ADD_PAT_HERE';
-  const USER_ID = 'clarifai';       
-  const APP_ID = 'main';
+function isValidImageUrl(input) {
+  if (typeof input !== 'string' || input.length > 2048) return false;
+  try {
+    const url = new URL(input);
+    return (url.protocol === 'http:' || url.protocol === 'https:') &&
+      Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
 
-  const IMAGE_URL = imageUrl;
+async function handleApiCall(req, res) {
+  const input = req.body?.input;
+  if (!isValidImageUrl(input)) {
+    return res.status(400).json({ error: 'A valid HTTP(S) image URL is required' });
+  }
 
-  const raw = JSON.stringify({
-      "user_app_id": {
-          "user_id": USER_ID,
-          "app_id": APP_ID
-      },
-      "inputs": [
-          {
-              "data": {
-                  "image": {
-                      "url": IMAGE_URL
-                  }
-              }
-          }
-      ]
-  });
+  const pat = process.env.CLARIFAI_PAT;
+  if (!pat) {
+    return res.status(503).json({ error: 'Face detection is not configured' });
+  }
 
-  return {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(CLARIFAI_URL, {
       method: 'POST',
       headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Key ' + PAT
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Key ${pat}`
       },
-      body: raw
-  };
+      body: JSON.stringify({
+        user_app_id: {
+          user_id: process.env.CLARIFAI_USER_ID || 'clarifai',
+          app_id: process.env.CLARIFAI_APP_ID || 'main'
+        },
+        inputs: [{ data: { image: { url: input } } }]
+      }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      return res.status(502).json({ error: 'Face detection service returned an error' });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error) {
+    console.error('Face detection request failed:', error.message);
+    return res.status(502).json({ error: 'Face detection service unavailable' });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-const handleApiCall = (req, res) => {
-  //OLD WAY:
-  // app.models.predict('face-detection', req.body.input)
-  //NEW WAY:
-  fetch("https://api.clarifai.com/v2/models/" + 'face-detection' + "/outputs", returnClarifaiRequestOptions(req.body.input))
-    .then(response => response.json())
-    .then(data => {
-      res.json(data);
-    })
-    .catch(err => res.status(400).json('unable to work with API'))
+async function handleImage(req, res, db) {
+  const id = Number(req.body?.id);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Valid user ID required' });
+  }
+
+  try {
+    const entries = await db('users')
+      .where('id', '=', id)
+      .increment('entries', 1)
+      .returning('entries');
+    if (!entries.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    return res.json(entries[0].entries);
+  } catch (error) {
+    console.error('Unable to update entries:', error.message);
+    return res.status(500).json({ error: 'Unable to update entries' });
+  }
 }
 
-const handleImage = (req, res, db) => {
-  const { id } = req.body;
-  db('users').where('id', '=', id)
-  .increment('entries', 1)
-  .returning('entries')
-  .then(entries => {
-    // If you are using knex.js version 1.0.0 or higher this now returns an array of objects. Therefore, the code goes from:
-    // entries[0] --> this used to return the entries
-    // TO
-    // entries[0].entries --> this now returns the entries
-    res.json(entries[0].entries);
-  })
-  .catch(err => res.status(400).json('unable to get entries'))
-}
-
-module.exports = {
-  handleImage,
-  handleApiCall
-}
+module.exports = { handleImage, handleApiCall, isValidImageUrl };
