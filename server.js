@@ -7,6 +7,7 @@ const register = require('./controllers/register');
 const signin = require('./controllers/signin');
 const profile = require('./controllers/profile');
 const image = require('./controllers/image');
+const auth = require('./auth');
 
 const connection = process.env.DATABASE_URL
   ? { connectionString: process.env.DATABASE_URL }
@@ -29,9 +30,9 @@ app.get('/', (_req, res) => res.json({ service: 'smart-brain-api', status: 'ok' 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.post('/signin', signin.handleSignin(db, bcrypt));
 app.post('/register', (req, res) => register.handleRegister(req, res, db, bcrypt));
-app.get('/profile/:id', (req, res) => profile.handleProfileGet(req, res, db));
-app.put('/image', (req, res) => image.handleImage(req, res, db));
-app.post('/imageurl', (req, res) => image.handleApiCall(req, res));
+app.get('/profile/:id', auth.requireAuth, auth.requireSameUser, (req, res) => profile.handleProfileGet(req, res, db));
+app.put('/image', auth.requireAuth, auth.requireSameUser, (req, res) => image.handleImage(req, res, db));
+app.post('/imageurl', auth.requireAuth, (req, res) => image.handleApiCall(req, res));
 
 app.use((err, _req, res, _next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
