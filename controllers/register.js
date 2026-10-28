@@ -1,3 +1,5 @@
+const { sign } = require('../auth');
+
 const handleRegister = async (req, res, db, bcrypt) => {
   const { email, name, password } = req.body || {};
   if (typeof email !== 'string' || typeof name !== 'string' || typeof password !== 'string' ||
@@ -15,7 +17,7 @@ const handleRegister = async (req, res, db, bcrypt) => {
       }).returning(['id', 'name', 'email', 'entries', 'joined']);
       return users[0];
     });
-    return res.status(201).json(user);
+    return res.status(201).json({ ...user, token: sign(user.id) });
   } catch (error) {
     console.error('Registration failed:', error.message);
     if (error.code === '23505') {
