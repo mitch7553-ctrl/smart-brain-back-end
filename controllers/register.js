@@ -1,38 +1,34 @@
-const handleRegister = (req, res, db, bcrypt) => {
-  const { email, name, password } = req.body;
-  if (!email || !name || !password) {
-    return res.status(400).json('incorrect form submission');
-  }
-  const hash = bcrypt.hashSync(password);
-    db.transaction(trx => {
-      trx.insert({
-        hash: hash,
-        email: email
-      })
-      .into('login')
-      .returning('email')
-      .then(loginEmail => {
-        return trx('users')
-          .returning('*')
-          .insert({
-            // If you are using knex.js version 1.0.0 or higher this now returns an array of objects. Therefore, the code goes from:
-            // loginEmail[0] --> this used to return the email
-            // TO
-            // loginEmail[0].email --> this now returns the email
-            email: loginEmail[0].email,
-            name: name,
-            joined: new Date()
-          })
-          .then(user => {
-            res.json(user[0]);
-          })
-      })
-      .then(trx.commit)
-      .catch(trx.rollback)
-    })
-    .catch(err => res.status(400).json('unable to register'))
-}
+const { sign } = require('../auth');
 
-module.exports = {
-  handleRegister: handleRegister
+const handleRegister = async (req, res, db, bcrypt) => {
+  const { email, name, password } = req.body || {};
+  if (typeof email !== 'string' || typeof name !== 'string' || typeof password !== 'string' ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
+      !name.trim() || name.length > 100 || password.length < 8 || password.length > 128) {
+    return res.status(400).json('Please provide a valid name, email, and password (8-128 characters).');
+  }
+
+  if (!process.env.AUTH_TOKEN_SECRET || process.env.AUTH_TOKEN_SECRET.length < 32) {
+    return res.status(503).json('Authentication service is not configured');
+  }
+
+  try {
+    const hash = bcrypt.hashSync(password);
+    const user = await db.transaction(async (trx) => {
+      await trx('login').insert({ email, hash });
+      const users = await trx('users').insert({
+        email, name: name.trim(), joined: new Date()
+      }).returning(['id', 'name', 'email', 'entries', 'joined']);
+      return users[0];
+    });
+    return res.status(201).json({ ...user, token: sign(user.id) });
+  } catch (error) {
+    console.error('Registration failed:', error.message);
+    if (error.code === '23505') {
+      return res.status(409).json('Account already exists');
+    }
+    return res.status(500).json('Unable to register');
+  }
 };
+
+module.exports = { handleRegister };
