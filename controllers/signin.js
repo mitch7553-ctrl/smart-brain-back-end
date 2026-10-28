@@ -1,3 +1,5 @@
+const { sign } = require('../auth');
+
 const handleSignin = (db, bcrypt) => async (req, res) => {
   const { email, password } = req.body || {};
   if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
@@ -15,7 +17,7 @@ const handleSignin = (db, bcrypt) => async (req, res) => {
     if (!user) {
       return res.status(401).json('wrong credentials');
     }
-    return res.json(user);
+    return res.json({ ...user, token: sign(user.id) });
   } catch (error) {
     console.error('Sign-in failed:', error.message);
     return res.status(500).json('unable to sign in');
